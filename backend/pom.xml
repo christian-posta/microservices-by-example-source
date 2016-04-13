@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.redhat.microservices</groupId>
+  <artifactId>backend</artifactId>
+  <version>1.0</version>
+  <packaging>war</packaging>
+
+  <properties>
+    <!-- Project -->
+    <jetty-maven-plugin.version>9.3.7.v20160115</jetty-maven-plugin.version>
+    <jetty.http.port>8080</jetty.http.port>
+    <maven-compiler-plugin.version>3.5</maven-compiler-plugin.version>
+    <maven-war-plugin.version>2.6</maven-war-plugin.version>
+    <servlet-version>2.5</servlet-version>
+    <jackson-version>2.6.3</jackson-version>
+    <fabric8.version>2.2.98</fabric8.version>
+
+    <!-- Docker-->
+    <docker.from>fabric8/tomcat-8.0</docker.from>
+    <docker.image>${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image>
+    <docker.assemblyDescriptorRef>rootWar</docker.assemblyDescriptorRef>
+    <docker.port.container.jolokia>8778</docker.port.container.jolokia>
+    <docker.port.container.http>${jetty.http.port}</docker.port.container.http>
+
+
+    <!-- Fabric8/Kubernetes/OpenShift-->
+    <fabric8.dockerUser>fabric8/</fabric8.dockerUser>
+    <fabric8.service.name>${project.artifactId}</fabric8.service.name>
+    <fabric8.service.port>80</fabric8.service.port>
+    <fabric8.service.containerPort>${jetty.http.port}</fabric8.service.containerPort>
+    <fabric8.service.type>LoadBalancer</fabric8.service.type>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>servlet-api</artifactId>
+      <version>${servlet-version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson-version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>${maven-war-plugin.version}</version>
+        <extensions>true</extensions>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-maven-plugin</artifactId>
+        <version>${jetty-maven-plugin.version}</version>
+        <configuration>
+          <httpConnector>
+            <!--host>localhost</host-->
+            <port>${jetty.http.port}</port>
+          </httpConnector>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric8-maven-plugin</artifactId>
+        <version>2.2.100</version>
+        <executions>
+          <execution>
+            <id>json</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>json</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>attach</id>
+            <phase>package</phase>
+            <goals>
+              <goal>attach</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+
+        <configuration>
+          <images>
+            <image>
+              <name>${docker.image}</name>
+              <build>
+                <from>${docker.from}</from>
+                <assembly>
+                  <descriptorRef>${docker.assemblyDescriptorRef}</descriptorRef>
+                </assembly>
+                <env>
+                  <CATALINA_OPTS>-javaagent:/opt/tomcat/jolokia-agent.jar=host=0.0.0.0,port=8778</CATALINA_OPTS>
+                </env>
+              </build>
+            </image>
+          </images>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>f8-build</id>
+      <build>
+        <defaultGoal>clean install docker:build fabric8:json</defaultGoal>
+      </build>
+    </profile>
+    <profile>
+      <id>f8-deploy</id>
+      <build>
+        <defaultGoal>clean install docker:build docker:push fabric8:json fabric8:apply</defaultGoal>
+      </build>
+      <properties>
+        <fabric8.recreate>true</fabric8.recreate>
+        <fabric8.imagePullPolicySnapshot>Always</fabric8.imagePullPolicySnapshot>
+      </properties>
+    </profile>
+    <profile>
+      <id>f8-local-deploy</id>
+      <build>
+        <defaultGoal>clean install docker:build fabric8:json fabric8:apply</defaultGoal>
+      </build>
+      <properties>
+        <fabric8.recreate>true</fabric8.recreate>
+      </properties>
+    </profile>
+  </profiles>
+</project>

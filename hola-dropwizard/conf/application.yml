@@ -1,0 +1,17 @@
+
+# configurations for our sayingFactory
+helloapp:
+
+  saying: ${HELLOAPP_SAYING:-Gutten Tag aus}
+
+
+greeter:
+
+  saying: ${GREETER_SAYING:-Gutten Tag Dropwizard}
+  host: ${GREETER_BACKEND_HOST:-localhost}
+  port: ${GREETER_BACKEND_PORT:-8080}
+
+server:
+  applicationConnectors:
+    - type: http
+      port: 8080
